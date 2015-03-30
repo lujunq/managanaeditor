@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<data>
+	<!-- expected agent ID on response -->
+	<agent>Managana</agent>
+	<!--<server>http://10.1.1.15/cachaca/</server>
+	<share>http://10.1.1.15/cachaca/share.php</share>
+	<feed>http://10.1.1.15/cachaca/feed.php</feed>-->
+	
+	<!--<server>http://www.managana.org/editor/</server>
+	<share>http://www.managana.org/editor/share.php</share>
+	<feed>http://www.managana.org/editor/feed.php</feed>-->
+	
+	<!--<server>http://www.memoriaemconstrucao.org/managana/</server>
+	<share>http://www.memoriaemconstrucao.org/managana/share.php</share>
+	<feed>http://www.memoriaemconstrucao.org/managana/feed.php</feed>-->
+	
+	<!--<server>http://www.ciclope.art.br/mhnjb/</server>
+	<share>http://www.ciclope.art.br/mhnjb/share.php</share>
+	<feed>http://www.ciclope.art.br/mhnjb/feed.php</feed>-->
+
+	<server>http://localhost/managana/</server>
+	<share>http://localhost/managana/share.php</share>
+	<feed>http://localhost/managana/feed.php</feed>
+	
+	<!-- server script file prefix -->
+	<prefix>DIS_</prefix>
+	<!-- server script file extension -->
+	<extension>.php</extension>
+	<!-- request method to use in server interaction -->
+	<method>post</method>
+</data>

@@ -1,0 +1,35 @@
+/* STANDARD COMPONENTS */
+
+.paddingGroup {
+	left: 5;
+	right: 5;
+	top: 5;
+	bottom: 5;
+}
+
+.displayGroup {
+	left: 0;
+	top: 22;
+	right: 0;
+	bottom: 30;
+}
+
+/* WARNING POPUP BUTTONS */
+
+.warningOK {
+	/*chromeColor: #009900;*/
+}
+
+.warningCANCEL {
+	/*chromeColor: #990000;*/
+}
+
+.warningEXTRA {
+	/*chromeColor: #999900;*/
+}
+
+/* UPPER MENU */
+
+.upperMenu {
+   
+}

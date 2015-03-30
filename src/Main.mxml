@@ -1,0 +1,1203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!---
+<b>Availability:</b> CICLOPE AS3 Classes - www.ciclope.art.br<br>
+<b>License:</b> GNU LGPL version 3<br><br>
+This is the main file for Managana editor.
+@author Lucas Junqueira - lucas@ciclope.art.br
+-->
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009"
+               xmlns:s="library://ns.adobe.com/flex/spark"
+               xmlns:mx="library://ns.adobe.com/flex/mx"
+			   xmlns:mana="art.ciclope.managanaeditor.*"
+			   creationComplete="init()"
+			   backgroundColor="0xCCCCCC"
+			   preloader="ManaganaSplash">
+	
+	<fx:Declarations>
+		<mx:ArrayCollection id="currentStreams" />
+		<mx:ArrayCollection id="currentPlaylists" />
+	</fx:Declarations>
+	
+	<fx:Metadata>
+		<!-- language resources -->
+		[ResourceBundle("language")]
+		<!-- error resources -->
+		[ResourceBundle("error")]
+	</fx:Metadata>
+	
+	<!-- app style -->
+	<fx:Style source="editorstyle.css" />
+	
+	<fx:Script>
+		<![CDATA[
+		
+		// FLASH PACKAGES
+		import flash.display.Loader;
+		import flash.display.LoaderInfo;
+		import flash.display.MovieClip;
+		import flash.display.Stage;
+		import flash.events.Event;
+		import flash.events.IOErrorEvent;
+		import flash.events.SecurityErrorEvent;
+		import flash.net.URLLoader;
+		import flash.net.URLRequest;
+		import flash.system.LoaderContext;
+		import flash.utils.Timer;
+		import flash.events.TimerEvent;
+		import spark.components.Panel;
+		import mx.managers.PopUpManager;
+		import flash.display.BitmapData;
+		import flash.utils.setTimeout;
+		import flash.net.URLRequest;
+		import flash.net.navigateToURL;
+		import flash.system.ApplicationDomain;
+		
+		// CICLOPE CLASSES
+		import art.ciclope.staticfunctions.StringFunctions;
+		import art.ciclope.managanaeditor.*;
+		import art.ciclope.util.LoadedFile;
+		import art.ciclope.managana.ManaganaFeed;
+		import art.ciclope.managanaeditor.data.DISElementED;
+		import art.ciclope.managana.data.ConfigData;
+		
+		// STATIC STATEMENTS
+		
+		/**
+		 * Halt entire system.
+		 * @param	title	title of halt message
+		 * @param	message	text of halt message
+		 */
+		public static function halt(title:String, message:String):void {
+			var window:Warning = new Warning();
+			window.warnTitle = title;
+			window.warnMessage = message;
+			window.setType(Warning.TYPE_FATAL);
+			Warning.showWarning(window);
+		}
+		
+		// CONSTANTS
+		
+		private const SERVERPREFIX:String = "DIS_";				// default prefix user on server scripts
+		private const SERVEREXTENSION:String = ".php";			// default file extension of server scripts
+		private const SERVERMETHOD:String = "post";				// default request method for server scripts
+		private const CONNAGENT:String = "Managana";			// connection agent identifier
+		
+		
+		// VARIABLE
+		
+		private var _tools:ToolsWindow;				// the tools window
+		private var _properties:PropertiesWindow;	// the properties window
+		private var _timeline:TimelineWindow;		// the timeline window
+		private var _playlist:PlaylistWindow;		// the playlist window
+		private var _preview:WindowPreview;			// the preview window
+		private var _community:CommunityWindow;		// community usage window
+		private var _publish:Boolean;				// was last stream saved also published?
+		private var _timer:Timer;					// usage check timer
+		private var _feeds:ManaganaFeed;			// external feeds reference
+		private var _managanaConfig:ConfigData;		// system configuration
+		
+		
+		// PUBLIC VARIABLES
+		
+		/**
+		 * Graphic display.
+		 */
+		public var view:ViewArea;
+		
+		/**
+		 * Reference for display stage.
+		 */
+		public static var theStage:Stage;
+		
+		// GRAPHICS
+		
+		include "res/ApplicationIcons.as";
+		
+		/**
+		 * Component initialize.
+		 */
+		private function init():void {
+			// adjust language
+			resourceManager.localeChain = ["en_US"];
+			// loaad fonts
+			var fontLoader:URLLoader = new URLLoader();
+			fontLoader.addEventListener(Event.COMPLETE, onFontComplete);
+			fontLoader.addEventListener(IOErrorEvent.IO_ERROR, onFontError);
+			fontLoader.addEventListener(SecurityErrorEvent.SECURITY_ERROR, onFontError);
+			fontLoader.load(new URLRequest("font/font.xml"));
+			// load configuration
+			this._managanaConfig = new ConfigData();
+			this._managanaConfig.addEventListener(Event.COMPLETE, onConfigComplete);
+			this._managanaConfig.addEventListener(Event.CANCEL, onConfigError);
+			// external feeds
+			this._feeds = new ManaganaFeed();
+			// stage reference
+			if (this.stage != null) Main.theStage = this.stage;
+				else this.addEventListener(Event.ADDED_TO_STAGE, onStage);
+		}
+		
+		/**
+		 * Got stage reference.
+		 */
+		private function onStage(evt:Event):void {
+			this.removeEventListener(Event.ADDED_TO_STAGE, onStage);
+			Main.theStage = this.stage;
+		}
+		
+		// READ-ONLY VALUES
+		
+		/**
+		 * Current display scale.
+		 */
+		public function get viewScale():Number {
+			return (this.view.scaleX);
+		}
+		
+		// PUBLIC METHODS
+		
+		/**
+		 * Display a community at editor view.
+		 */
+		public function showCommunity():void {
+			this._feeds.clear();
+			for (var ifeed:uint = 0; ifeed < LoadedData.community.feeds.length; ifeed++) {
+				this._feeds.addFeed(LoadedData.community.feeds[ifeed].type, StringFunctions.noSpecial(LoadedData.community.feeds[ifeed].name), LoadedData.community.feeds[ifeed].reference, LoadedData.community.id);
+			}
+			this.view.stylesheet.parseCSS(LoadedData.community.css);
+			this.view.showCommunity();
+			this.view.redraw();
+			this.adjustView();
+			this._tools.buttonsEnabled = true;
+			// comunity menu
+			if ((LoadedData.community.level == "super") || (LoadedData.community.level == "admin")) {
+				this.mainmenu.setEnabled(true, "Community", "2");
+				this.mainmenu.setEnabled(true, "Community", "3");
+				this.mainmenu.setEnabled(true, "Community", "4");
+				this.mainmenu.setEnabled(true, "Community", "7");
+			} else {
+				this.mainmenu.setEnabled(false, "Community", "2");
+				this.mainmenu.setEnabled(false, "Community", "3");
+				this.mainmenu.setEnabled(false, "Community", "4");
+				this.mainmenu.setEnabled(false, "Community", "7");
+			}
+			// delete/import community menu item
+			if (UserInfo.level == "super") {
+				this.mainmenu.setEnabled(true, "Community", "9");
+				this.mainmenu.setEnabled(true, "Community", "11");
+			} else if ((UserInfo.level == "admin") && (LoadedData.community.level == "admin")) {
+				this.mainmenu.setEnabled(true, "Community", "9");
+				this.mainmenu.setEnabled(true, "Community", "11");
+			}
+			// statistics
+			if ((UserInfo.level == "super") || (LoadedData.community.level == "admin") || (LoadedData.community.level == "editor")) {
+				this.mainmenu.setEnabled(true, "Community", "6");
+				this.mainmenu.setEnabled(true, "Community", "8");
+				this.mainmenu.setEnabled(true, "Community", "12");
+				this.mainmenu.setEnabled(true, "Community", "14");
+				this.mainmenu.setEnabled(true, "Community", "15");
+				this.mainmenu.setEnabled(true, "Community", "16");
+			} else {
+				this.mainmenu.setEnabled(false, "Community", "6");
+				this.mainmenu.setEnabled(false, "Community", "8");
+				this.mainmenu.setEnabled(false, "Community", "12");
+				this.mainmenu.setEnabled(false, "Community", "14");
+				this.mainmenu.setEnabled(false, "Community", "15");
+				this.mainmenu.setEnabled(false, "Community", "16");
+			}
+			// file manager
+			this.mainmenu.setEnabled(true, "Community", "5");
+			// preview and links
+			this.mainmenu.setEnabled(true, "Community", "18");
+			this.mainmenu.setEnabled(true, "Community", "19");
+			this.mainmenu.setEnabled(true, "Stream");
+			this.processCommand("StreamRefresh");
+			// show visible area
+			this.view.visible = true;
+		}
+		
+		/**
+		 * Overall command processing.
+		 */
+public function processCommand(command:String, parameter:* = null):* {
+	// any return?
+	var ret:*;
+	// check command
+	switch (command) {
+		// users
+		case "manageUsers":
+			if (UserInfo.level == "super") {
+				var usrWindow:WindowUsers = new WindowUsers();
+				PopUpManager.addPopUp(usrWindow, this, true);
+				PopUpManager.centerPopUp(usrWindow);
+			} else {
+				Warning.createWarning(resourceManager.getString('language', 'PERM_TITLE'), resourceManager.getString('language', 'USR_PERMISSIONERROR'));
+			}
+			break;
+		// remote control users
+		case "manageRemoteUsers":
+			if (UserInfo.level == "super") {
+				var rusrWindow:WindowRemoteUsers = new WindowRemoteUsers();
+				PopUpManager.addPopUp(rusrWindow, this, true);
+				PopUpManager.centerPopUp(rusrWindow)
+			} else {
+				Warning.createWarning(resourceManager.getString('language', 'PERM_TITLE'), resourceManager.getString('language', 'USR_PERMISSIONERROR'));
+			}
+			break;
+		// login
+		case "loginCheck":
+			if (UserInfo.logged) this.processCommand("showLogout");
+				else this.processCommand("showLogin");
+			break;
+		case "showLogin":
+			var login:WindowLogin = new WindowLogin();
+			PopUpManager.addPopUp(login, this, true);
+			PopUpManager.centerPopUp(login)
+			break;
+		case "showLogout":
+			WindowServerCheck.createServer("logout", null, logoutOK);
+			break;
+		case "doLogin":
+			this.statusBar.userLogged();
+			this.mainmenu.enableMenu();
+			this.statusBar.showStatus(resourceManager.getString('language', 'LW_LOGINOK'));
+			this.mainmenu.setEnabled(true, "User", "1");
+			if (UserInfo.level == "super") {
+				this.mainmenu.setEnabled(true, "User", "2");
+				this.mainmenu.setEnabled(true, "User", "3");
+				this.mainmenu.setEnabled(true, "Configuration");
+			}
+			if ((UserInfo.level == "super") || (UserInfo.level == "admin")) {
+				this.mainmenu.setEnabled(true, "Community", "0");
+				this.mainmenu.setEnabled(true, "Community", "11");
+			} else {
+				this.mainmenu.setEnabled(false, "Community", "0");
+				this.mainmenu.setEnabled(false, "Community", "11");
+			}
+			break;
+		case "doLogout":
+			UserInfo.clear();
+			this.statusBar.userLoggedOut();
+			this.mainmenu.disableMenu();
+			this.mainmenu.setEnabled(false, "Community", "2");
+			this.mainmenu.setEnabled(false, "Community", "3");
+			this.mainmenu.setEnabled(false, "Community", "4");
+			this.mainmenu.setEnabled(false, "Community", "5");
+			this.mainmenu.setEnabled(false, "Community", "6");
+			this.mainmenu.setEnabled(false, "Community", "7");
+			this.mainmenu.setEnabled(false, "Community", "8");
+			this.mainmenu.setEnabled(false, "Community", "9");
+			this.mainmenu.setEnabled(false, "Community", "12");
+			this.mainmenu.setEnabled(false, "Community", "14");
+			this.mainmenu.setEnabled(false, "Community", "15");
+			this.mainmenu.setEnabled(false, "Community", "16");
+			this.mainmenu.setEnabled(false, "Community", "18");
+			this.mainmenu.setEnabled(false, "Community", "19");
+			this.mainmenu.setEnabled(false, "User", "1");
+			this.mainmenu.setEnabled(false, "User", "2");
+			this.mainmenu.setEnabled(false, "User", "3");
+			this.mainmenu.setEnabled(false, "Configuration");
+			this.statusBar.showStatus(resourceManager.getString('language', 'LW_LOGOUTOK'));
+			this.processCommand('selectNone');
+			this.view.visible = false;
+			break;
+		case "passChange":
+			var pasw:WindowPassword = new WindowPassword();
+			PopUpManager.addPopUp(pasw, this, true);
+			PopUpManager.centerPopUp(pasw)
+			break;
+		// windows visibility
+		case "windowArrange":
+			this._tools.x = 5;
+			this._tools.y = 30;
+			this._properties.x = this.width - 5 - this._properties.width;
+			this._properties.y = 30;
+			PopUpManager.centerPopUp(this._timeline);
+			PopUpManager.centerPopUp(this._playlist);
+			PopUpManager.centerPopUp(this._community);
+			PopUpManager.centerPopUp(this._preview);
+			break;
+		case "toggleTools":
+			this._tools.visible = !this._tools.visible;
+			this.mainmenu.process("toggleTools", this._tools.visible);
+			break;
+		case "togglePlaylist":
+			this._playlist.visible = !this._playlist.visible;
+			this.mainmenu.process("togglePlaylist", this._playlist.visible);
+			break;
+		case "toggleCommunity":
+			this._community.visible = !this._community.visible;
+			this.mainmenu.process("toggleCommunity", this._community.visible);
+			break;
+		case "toggleProperties":
+			this._properties.visible = !this._properties.visible;
+			this.mainmenu.process("toggleProperties", this._properties.visible);
+			break;
+		case "toggleTimeline":
+			this._timeline.visible = !this._timeline.visible;
+			this.mainmenu.process("toggleTimeline", this._timeline.visible);
+			break;
+		// community
+		case "CommunityPermission":
+			if ((UserInfo.level == "super") || (UserInfo.level == "admin")) {
+				var userCommunity:WindowCommunityPermissions = new WindowCommunityPermissions();
+				PopUpManager.addPopUp(userCommunity, this, true);
+				PopUpManager.centerPopUp(userCommunity);
+			} else {
+				Warning.createWarning(resourceManager.getString('language', 'PERM_TITLE'), resourceManager.getString('language', 'PERM_NOPROPCOMMUNITY'));
+			}
+			break;
+		case "CommunityNavigation":
+			if ((UserInfo.level == "super") || (UserInfo.level == "admin") || (UserInfo.level == "editor")) {
+				var navCommunity:WindowCommunitySequences = new WindowCommunitySequences();
+				PopUpManager.addPopUp(navCommunity, this, true);
+				PopUpManager.centerPopUp(navCommunity);
+			} else {
+				Warning.createWarning(resourceManager.getString('language', 'PERM_TITLE'), resourceManager.getString('language', 'PERM_NOPROPCOMMUNITY'));
+			}
+			break;
+		case "CommunityEdition":
+			if ((UserInfo.level == "super") || (UserInfo.level == "admin") || (UserInfo.level == "editor")) {
+				var edCommunity:WindowCommunityEdition = new WindowCommunityEdition();
+				PopUpManager.addPopUp(edCommunity, this, true);
+				PopUpManager.centerPopUp(edCommunity);
+			} else {
+				Warning.createWarning(resourceManager.getString('language', 'PERM_TITLE'), resourceManager.getString('language', 'PERM_NOPROPCOMMUNITY'));
+			}
+			break;
+		case "CommunityNew":
+			if ((UserInfo.level == "super") || (UserInfo.level == "admin")) {
+				var newCommunity:WindowCommunityNew = new WindowCommunityNew();
+				PopUpManager.addPopUp(newCommunity, this, true);
+				PopUpManager.centerPopUp(newCommunity);
+			} else {
+				Warning.createWarning(resourceManager.getString('language', 'PERM_TITLE'), resourceManager.getString('language', 'PERM_NONEWCOMMUNITY'));
+			}
+			break;
+		case "CommunityOpen":
+			var openCommunity:WindowCommunityOpen = new WindowCommunityOpen();
+			PopUpManager.addPopUp(openCommunity, this, true);
+			PopUpManager.centerPopUp(openCommunity);
+			break;
+		case "CommunityProperties":
+			if ((LoadedData.community.level == "super") || (LoadedData.community.level == "admin")) {
+				var propCommunity:WindowCommunityProperties = new WindowCommunityProperties();
+				propCommunity.setTab(parameter);
+				PopUpManager.addPopUp(propCommunity, this, true);
+				PopUpManager.centerPopUp(propCommunity);
+			} else {
+				Warning.createWarning(resourceManager.getString('language', 'PERM_TITLE'), resourceManager.getString('language', 'PERM_NOPROPCOMMUNITY'));
+			}
+			break;
+		case "CommunityCategories":
+			if ((LoadedData.community.level == "super") || (LoadedData.community.level == "admin")) {
+				var catCommunity:WindowCommunityCategories = new WindowCommunityCategories();
+				PopUpManager.addPopUp(catCommunity, this, true);
+				PopUpManager.centerPopUp(catCommunity);
+			} else {
+				Warning.createWarning(resourceManager.getString('language', 'PERM_TITLE'), resourceManager.getString('language', 'PERM_NOPROPCOMMUNITY'));
+			}
+			break;
+		case "CommunityVariables":
+			if ((LoadedData.community.level == "super") || (LoadedData.community.level == "admin")) {
+				var varCommunity:WindowCommunityVariables = new WindowCommunityVariables();
+				PopUpManager.addPopUp(varCommunity, this, true);
+				PopUpManager.centerPopUp(varCommunity);
+			} else {
+				Warning.createWarning(resourceManager.getString('language', 'PERM_TITLE'), resourceManager.getString('language', 'PERM_NOPROPCOMMUNITY'));
+			}
+			break;
+		case "CommunityFileManager":
+			var fManager:WindowFileManager = new WindowFileManager();
+			PopUpManager.addPopUp(fManager, this, true);
+			PopUpManager.centerPopUp(fManager)
+			break;
+		case "CommunityDelete":
+			if ((UserInfo.level == "super") || ((UserInfo.level == "admin") && (LoadedData.community.level == "admin"))) {
+				var deleteCommunity:WindowConfirm = new WindowConfirm();
+				deleteCommunity.setAction(WindowConfirm.ACTION_DELETECOMMUNITY, String(LoadedData.community.id), this.confirmComDeleteReturn);
+				PopUpManager.addPopUp(deleteCommunity, this, true);
+				PopUpManager.centerPopUp(deleteCommunity);
+			} else {
+				Warning.createWarning(resourceManager.getString('language', 'PERM_TITLE'), resourceManager.getString('language', 'PERM_NOPROPCOMMUNITY'));
+			}
+			break;
+		case "CommunityPublish":
+			if ((UserInfo.level == "super") || ((UserInfo.level == "admin") && (LoadedData.community.level == "admin"))) {
+				var publishCommunity:WindowConfirm = new WindowConfirm();
+				publishCommunity.setAction(WindowConfirm.ACTION_PUBLISHCOMMUNITY, String(LoadedData.community.id), this.confirmComPublishReturn);
+				PopUpManager.addPopUp(publishCommunity, this, true);
+				PopUpManager.centerPopUp(publishCommunity);
+			} else {
+				Warning.createWarning(resourceManager.getString('language', 'PERM_TITLE'), resourceManager.getString('language', 'PERM_NOPROPCOMMUNITY'));
+			}
+			break;
+		case "CommunityImport":
+			if ((UserInfo.level == "super") || (UserInfo.level == "admin")) {
+				var importCommunity:WindowCommunityImport = new WindowCommunityImport();
+				PopUpManager.addPopUp(importCommunity, this, true);
+				PopUpManager.centerPopUp(importCommunity);
+			} else {
+				Warning.createWarning(resourceManager.getString('language', 'PERM_TITLE'), resourceManager.getString('language', 'PERM_NOPROPCOMMUNITY'));
+			}
+			break;
+		case "CommunityComments":
+			if ((UserInfo.level == "super") || (LoadedData.community.level == "admin") || (LoadedData.community.level == "editor")) {
+				var commCommunity:WindowCommunityComments = new WindowCommunityComments();
+				PopUpManager.addPopUp(commCommunity, this, true);
+				PopUpManager.centerPopUp(commCommunity);
+			} else {
+				Warning.createWarning(resourceManager.getString('language', 'PERM_TITLE'), resourceManager.getString('language', 'PERM_NOPROPCOMMUNITY'));
+			}
+			break;
+		case "CommunityRatings":
+			if ((UserInfo.level == "super") || (LoadedData.community.level == "admin") || (LoadedData.community.level == "editor")) {
+				var rateCommunity:WindowCommunityRatings = new WindowCommunityRatings();
+				PopUpManager.addPopUp(rateCommunity, this, true);
+				PopUpManager.centerPopUp(rateCommunity);
+			} else {
+				Warning.createWarning(resourceManager.getString('language', 'PERM_TITLE'), resourceManager.getString('language', 'PERM_NOPROPCOMMUNITY'));
+			}
+			break;
+		case "CommunityStats":
+			if ((UserInfo.level == "super") || (LoadedData.community.level == "admin") || (LoadedData.community.level == "editor")) {
+				var statCommunity:WindowCommunityStats = new WindowCommunityStats();
+				PopUpManager.addPopUp(statCommunity, this, true);
+				PopUpManager.centerPopUp(statCommunity);
+			} else {
+				Warning.createWarning(resourceManager.getString('language', 'PERM_TITLE'), resourceManager.getString('language', 'PERM_NOPROPCOMMUNITY'));
+			}
+			break;
+		// stream
+		case "StreamNew":
+			var newStream:WindowStreamNew = new WindowStreamNew();
+			PopUpManager.addPopUp(newStream, this, true);
+			PopUpManager.centerPopUp(newStream);
+			break;
+		case "StreamSave":
+			if (LoadedData.stream.id == "") {
+				processCommand("StreamProperties");
+			} else {
+				this._publish = false;
+				WindowStreamProperties.saveStream(false, false, this.onStreamSave);
+			}
+			break;
+		case "StreamPublish":
+			if (LoadedData.stream.id == "") {
+				processCommand("StreamProperties");
+			} else {
+				this._publish = true;
+				WindowStreamProperties.saveStream(false, true, this.onStreamSave);
+			}
+			break;
+		case "StreamOpen":
+			var openStream:WindowStreamOpen = new WindowStreamOpen();
+			PopUpManager.addPopUp(openStream, this, true);
+			PopUpManager.centerPopUp(openStream);
+			break;
+		case "StreamProperties":
+			var propStream:WindowStreamProperties = new WindowStreamProperties();
+			PopUpManager.addPopUp(propStream, this, true);
+			PopUpManager.centerPopUp(propStream);
+			break;
+		case "StreamTime":
+			var timeStream:WindowStreamTime = new WindowStreamTime();
+			PopUpManager.addPopUp(timeStream, this, true);
+			PopUpManager.centerPopUp(timeStream);
+			break;
+		case "StreamNavigation":
+			var navStream:WindowStreamNavigation = new WindowStreamNavigation();
+			PopUpManager.addPopUp(navStream, this, true);
+			PopUpManager.centerPopUp(navStream);
+			break;
+		case "StreamGeolocation":
+			var geoStream:WindowStreamGeolocation = new WindowStreamGeolocation();
+			PopUpManager.addPopUp(geoStream, this, true);
+			PopUpManager.centerPopUp(geoStream);
+			break;
+		case "StreamRevisions":
+			var revStream:WindowStreamRevisions = new WindowStreamRevisions();
+			PopUpManager.addPopUp(revStream, this, true);
+			PopUpManager.centerPopUp(revStream);
+			break;
+		case "StreamGuides":
+			var guideStream:WindowStreamGuides = new WindowStreamGuides();
+			PopUpManager.addPopUp(guideStream, this, true);
+			PopUpManager.centerPopUp(guideStream);
+			break;
+		case "StreamRefresh":
+			this._timeline.loadStream();
+			this.statusBar.showDefaultStatus();
+			break;
+		case "StreamNewKey":
+			LoadedData.stream.addKeyframe();
+			LoadedData.stream.currentKeyframe = LoadedData.stream.keyframes.length - 1;
+			this.processCommand('selectNone');
+			this.processCommand("redraw");
+			this.processCommand("StreamRefresh");
+			break;
+		case "StreamNewEmptyKey":
+			LoadedData.stream.addEmptyKeyframe();
+			LoadedData.stream.currentKeyframe = LoadedData.stream.keyframes.length - 1;
+			this.processCommand('selectNone');
+			this.processCommand("redraw");
+			this.processCommand("StreamRefresh");
+			break;
+		case "StreamRemoveKey":
+			if (LoadedData.stream.keyframes.length > 1) Warning.createWarning(resourceManager.getString('language', 'TIMELINE_REMOVEKEYTITLE'), resourceManager.getString('language', 'TIMELINE_REMOVEKEY'), Warning.TYPE_OKCANCEL, doRemoveKeyframe, String(parameter));
+			break;
+		// playlist
+		case "PlaylistEditPlaylist":
+			PopUpManager.centerPopUp(this._playlist);
+			PopUpManager.bringToFront(this._playlist);
+			this._playlist.visible = true;
+			this._playlist.selectPlaylist(String(parameter));
+			break;
+		case "PlaylistAddPicture":
+			var addPicture:WindowAddPlaylist = new WindowAddPlaylist();
+			addPicture.fileType = LoadedFile.TYPE_PICTURE;
+			PopUpManager.addPopUp(addPicture, this, true);
+			PopUpManager.centerPopUp(addPicture);
+			break;
+		case "PlaylistAddPictureElement":
+			var addPictureE:WindowAddPlaylist = new WindowAddPlaylist();
+			addPictureE.fileType = LoadedFile.TYPE_PICTURE;
+			addPictureE.playlistToAdd = parameter;
+			PopUpManager.addPopUp(addPictureE, this, true);
+			PopUpManager.centerPopUp(addPictureE);
+			break;
+		case "PlaylistAddText":
+			var addText:WindowAddPlaylist = new WindowAddPlaylist();
+			addText.fileType = LoadedFile.TYPE_TEXT;
+			PopUpManager.addPopUp(addText, this, true);
+			PopUpManager.centerPopUp(addText);
+			break;
+		case "PlaylistAddTextElement":
+			var addTextE:WindowAddPlaylist = new WindowAddPlaylist();
+			addTextE.fileType = LoadedFile.TYPE_TEXT;
+			addTextE.playlistToAdd = parameter;
+			PopUpManager.addPopUp(addTextE, this, true);
+			PopUpManager.centerPopUp(addTextE);
+			break;
+		case "PlaylistAddParagraph":
+			var addParagraph:WindowAddPlaylist = new WindowAddPlaylist();
+			addParagraph.fileType = LoadedFile.TYPE_PARAGRAPH;
+			PopUpManager.addPopUp(addParagraph, this, true);
+			PopUpManager.centerPopUp(addParagraph);
+			break;
+		case "PlaylistAddParagraphElement":
+			var addParagraphE:WindowAddPlaylist = new WindowAddPlaylist();
+			addParagraphE.fileType = LoadedFile.TYPE_PARAGRAPH;
+			addParagraphE.playlistToAdd = parameter;
+			PopUpManager.addPopUp(addParagraphE, this, true);
+			PopUpManager.centerPopUp(addParagraphE);
+			break;
+		case "PlaylistAddVideo":
+			var addVideo:WindowAddPlaylist = new WindowAddPlaylist();
+			addVideo.fileType = LoadedFile.TYPE_VIDEO;
+			PopUpManager.addPopUp(addVideo, this, true);
+			PopUpManager.centerPopUp(addVideo);
+			break;
+		case "PlaylistAddVideoElement":
+			var addVideoE:WindowAddPlaylist = new WindowAddPlaylist();
+			addVideoE.fileType = LoadedFile.TYPE_VIDEO;
+			addVideoE.playlistToAdd = parameter;
+			PopUpManager.addPopUp(addVideoE, this, true);
+			PopUpManager.centerPopUp(addVideoE);
+			break;
+		case "PlaylistAddAudio":
+			var addAudio:WindowAddPlaylist = new WindowAddPlaylist();
+			addAudio.fileType = LoadedFile.TYPE_AUDIO;
+			PopUpManager.addPopUp(addAudio, this, true);
+			PopUpManager.centerPopUp(addAudio);
+			break;
+		case "PlaylistAddPlaylist":
+			this._playlist.visible = true;
+			this.mainmenu.process("togglePlaylist", this._playlist.visible);
+			PopUpManager.centerPopUp(this._playlist);
+			PopUpManager.bringToFront(this._playlist);
+			break;
+		case "PlaylistAddAudioElement":
+			var addAudioE:WindowAddPlaylist = new WindowAddPlaylist();
+			addAudioE.fileType = LoadedFile.TYPE_AUDIO;
+			addAudioE.playlistToAdd = parameter;
+			PopUpManager.addPopUp(addAudioE, this, true);
+			PopUpManager.centerPopUp(addAudioE);
+			break;
+		case "PlaylistUpdate":
+			if (parameter == null) {
+				this._playlist.updateStreamPlaylists();
+			} else {
+				this._playlist.updateStreamPlaylists(parameter);
+				this._properties.playlistUpdated(parameter);
+			}
+			break;
+		case "PlaylistEdit":
+			if (parameter != null) {
+				var editElement:WindowAddPlaylist = new WindowAddPlaylist();
+				var element:DISElementED = parameter.element as DISElementED;
+				editElement.element = element;
+				editElement.playlistToAdd = String(parameter.playlist);
+				PopUpManager.addPopUp(editElement, this, true);
+				PopUpManager.centerPopUp(editElement);
+			}
+			break;
+		// community links
+		case "LinksCommunity":
+			var linkWindow:WindowCommunityLinks = new WindowCommunityLinks();
+			PopUpManager.addPopUp(linkWindow, this, true);
+			PopUpManager.centerPopUp(linkWindow);
+			break;
+		// preview
+		case "PreviewCommunity":
+			this._preview.loadCommunity();
+			break;
+		case "PreviewStream":
+			this._preview.loadCommunity(true);
+			this._preview.previewStream = true;
+			break;
+		case "OpenPlayer":
+			navigateToURL(new URLRequest(EditorOptions.path + "?community=" + LoadedData.community.id + "&stream=" + LoadedData.stream.id));
+			break;
+		case "OpenPlayerHTML5":
+			navigateToURL(new URLRequest(EditorOptions.path + "?render=5&community=" + LoadedData.community.id + "&stream=" + LoadedData.stream.id));
+			break;
+		// status bar
+		case "showStatus":
+			this.statusBar.showStatus(parameter);
+			break;
+		// display
+		case "redraw":
+			this.view.redraw();
+			break;
+		case "zoomUp":
+			var zUp:Number = this.view.scaleX + 0.25;
+			if (zUp <= 3) {
+				this.view.scaleY = this.view.scaleX = zUp;
+				this.adjustView();
+			}
+			break;
+		case "zoomDown":
+			var zDown:Number = this.view.scaleX - 0.25;
+			if (zDown >= 0.25) {
+				this.view.scaleY = this.view.scaleX = zDown;
+				this.adjustView();
+			}
+			break;
+		case "zoomClear":
+			this.view.scaleY = this.view.scaleX = 1;
+			this.adjustView();
+			break;
+		case "selectImage":
+			this._properties.selectImage(parameter);
+			this.view.selectInstance(parameter);
+			this.statusBar.showDefaultStatus();
+			break;
+		case "selectNone":
+			this._properties.selectNone();
+			this.view.selectNone();
+			this.statusBar.showDefaultStatus();
+			break;
+		case "selectUpdate":
+			this.view.selectUpdate(parameter);
+			break;
+		case "hideImage":
+			this.view.hideInstance(parameter);
+			ret = this.view.getInstance(parameter).shown;
+			if (!ret) this.processCommand("selectNone");
+			break;
+		case "lockImage":
+			this.view.lockInstance(parameter);
+			ret = this.view.getInstance(parameter).mouseEnabled;
+			if (!ret) this.processCommand("selectNone");
+			break;
+		case "deleteInstance":
+			if (LoadedData.stream.keyframes[LoadedData.stream.currentKeyframe].instance[parameter]) {
+				delete(LoadedData.stream.keyframes[LoadedData.stream.currentKeyframe].instance[parameter]);
+				this.processCommand('selectNone');
+				this.view.redraw();
+			}
+			break;
+		case "updateInstances":
+			this._timeline.updateInstances();
+			this._playlist.updateStreamPlaylists();
+			break;
+		case "zSort":
+			this.view.zSort();
+			break;
+		case "switchAspect":
+			if (this.view.aspect == "landscape") this.view.aspect = "portrait";
+				else this.view.aspect = "landscape";
+			this.view.showCommunity();
+			this.adjustView();
+			break;
+		case "getInstance":
+			ret = this.view.getInstance(String(parameter));
+			break;
+		case "getSelectedInstance":
+			ret = this._properties.selectedInstance;
+			break;
+		case "getNextOrder":
+			ret = this.view.getNextOrder();
+			break;
+		case "voteDrag":
+			var voteDisplay:VoteDisplayED = parameter as VoteDisplayED;
+			for (var ivote:uint = 0; ivote < LoadedData.stream.voteoptions.length; ivote++) {
+				if (LoadedData.stream.voteoptions[ivote].num == voteDisplay.num) {
+					LoadedData.stream.voteoptions[ivote].px = voteDisplay.x;
+					LoadedData.stream.voteoptions[ivote].py = voteDisplay.y;
+				}
+			}
+			break;
+		case "updateVoteDisplay":
+			this.view.checkVotes();
+			break;
+		case "applyCSS":
+			this.view.stylesheet.parseCSS(LoadedData.community.css);
+			this.view.redraw();
+			break;
+		case "updateFontList":
+			this._properties.updateFontList();
+			break;
+		// system configuration
+		case "ConfigFacebook":
+			if (UserInfo.level == "super") {
+				var cnfFB:WindowConfigFacebook = new WindowConfigFacebook();
+				PopUpManager.addPopUp(cnfFB, this, true);
+				PopUpManager.centerPopUp(cnfFB);
+			} else {
+				Warning.createWarning(resourceManager.getString('language', 'PERM_TITLE'), resourceManager.getString('language', 'PERM_NOCONFIG'));
+			}
+			break;
+		case "ConfigPKey":
+			if (UserInfo.level == "super") {
+				var cnfPK:WindowPublicKey = new WindowPublicKey();
+				PopUpManager.addPopUp(cnfPK, this, true);
+				PopUpManager.centerPopUp(cnfPK);
+			} else {
+				Warning.createWarning(resourceManager.getString('language', 'PERM_TITLE'), resourceManager.getString('language', 'PERM_NOCONFIG'));
+			}
+			break;
+		case "ConfigReader":
+			if (UserInfo.level == "super") {
+				var cnfReader:WindowConfigReader = new WindowConfigReader();
+				PopUpManager.addPopUp(cnfReader, this, true);
+				PopUpManager.centerPopUp(cnfReader);
+			} else {
+				Warning.createWarning(resourceManager.getString('language', 'PERM_TITLE'), resourceManager.getString('language', 'PERM_NOCONFIG'));
+			}
+			break;
+		case "ConfigEditor":
+			if (UserInfo.level == "super") {
+				var cnfEditor:WindowConfigEditor = new WindowConfigEditor();
+				PopUpManager.addPopUp(cnfEditor, this, true);
+				PopUpManager.centerPopUp(cnfEditor);
+			} else {
+				Warning.createWarning(resourceManager.getString('language', 'PERM_TITLE'), resourceManager.getString('language', 'PERM_NOCONFIG'));
+			}
+			break;
+		case "ConfigMailing":
+			if (UserInfo.level == "super") {
+				var cnfMail:WindowConfigMailing = new WindowConfigMailing();
+				PopUpManager.addPopUp(cnfMail, this, true);
+				PopUpManager.centerPopUp(cnfMail);
+			} else {
+				Warning.createWarning(resourceManager.getString('language', 'PERM_TITLE'), resourceManager.getString('language', 'PERM_NOCONFIG'));
+			}
+			break;
+		case "ConfigRecover":
+			if (UserInfo.level == "super") {
+				var cnfRecover:WindowConfigRecover = new WindowConfigRecover();
+				PopUpManager.addPopUp(cnfRecover, this, true);
+				PopUpManager.centerPopUp(cnfRecover);
+			} else {
+				Warning.createWarning(resourceManager.getString('language', 'PERM_TITLE'), resourceManager.getString('language', 'PERM_NOCONFIG'));
+			}
+			break;
+		case "ConfigFonts":
+			if (UserInfo.level == "super") {
+				var cnfFonts:WindowConfigFonts = new WindowConfigFonts();
+				PopUpManager.addPopUp(cnfFonts, this, true);
+				PopUpManager.centerPopUp(cnfFonts);
+			} else {
+				Warning.createWarning(resourceManager.getString('language', 'PERM_TITLE'), resourceManager.getString('language', 'PERM_NOCONFIG'));
+			}
+			break;
+		case "ConfigLanguage":
+			if (UserInfo.level == "super") {
+				var cnfLang:WindowLanguage = new WindowLanguage();
+				PopUpManager.addPopUp(cnfLang, this, true);
+				PopUpManager.centerPopUp(cnfLang);
+			} else {
+				Warning.createWarning(resourceManager.getString('language', 'PERM_TITLE'), resourceManager.getString('language', 'PERM_NOCONFIG'));
+			}
+			break;
+	}
+	return (ret);
+}
+
+		/**
+		 * A function to call after the delete community confirmation is called.
+		 * @param	response	true if the user confirmed deletion, false otherwise
+		 */
+		private function confirmComDeleteReturn(response:Boolean):void {
+			if (response) {
+				this.mainmenu.setEnabled(false, "Community", "2");
+				this.mainmenu.setEnabled(false, "Community", "3");
+				this.mainmenu.setEnabled(false, "Community", "4");
+				this.mainmenu.setEnabled(false, "Community", "5");
+				this.mainmenu.setEnabled(false, "Community", "6");
+				this.mainmenu.setEnabled(false, "Community", "7");
+				this.mainmenu.setEnabled(false, "Community", "8");
+				this.mainmenu.setEnabled(false, "Community", "9");
+				this.mainmenu.setEnabled(false, "Community", "11");
+				this.mainmenu.setEnabled(false, "Community", "12");
+				this.mainmenu.setEnabled(false, "Community", "14");
+				this.mainmenu.setEnabled(false, "Community", "15");
+				this.mainmenu.setEnabled(false, "Community", "16");
+				this.mainmenu.setEnabled(false, "Community", "18");
+				this.mainmenu.setEnabled(false, "Community", "19");
+				this.mainmenu.setEnabled(false, "Stream");
+				this.processCommand('selectNone');
+				this.view.visible = false;
+			}
+		}
+		
+		/**
+		 * A function to call after the re-publish community confirmation is called.
+		 * @param	response	true if the user confirmed re-publish, false otherwise
+		 */
+		private function confirmComPublishReturn(response:Boolean):void {
+			if (response) {
+				// do nothing
+			}
+		}
+
+		/**
+		 * Get server response on stream save.
+		 */
+		private function onStreamSave(server:ServerInteraction):void {
+			if (server.error == ServerEvent.SERVER_ERROR) {
+				Warning.createWarning(resourceManager.getString('language', 'STW_SAVETITLEERROR'), resourceManager.getString('error', server.errorID));
+			} else if (server.error == ServerEvent.SERVER_OK) {
+				LoadedData.stream.newStream = false;
+				if (this._publish) {
+					processCommand("showStatus", (resourceManager.getString('language', 'STW_PUBLISHED') + " " + LoadedData.stream.title));
+				} else {
+					processCommand("showStatus", (resourceManager.getString('language', 'STW_SAVED') + " " + LoadedData.stream.title));
+				}
+			}
+			server.kill();
+		}
+		
+		/**
+		 * Remove a keyframe from current stream.
+		 * @param	num	the keyframe to remove
+		 */
+		private function doRemoveKeyframe(num:String):void {
+			LoadedData.stream.removeKeyframe(uint(num));
+			LoadedData.stream.currentKeyframe = 0;
+			this.processCommand("redraw");
+			this.processCommand("StreamRefresh");
+		}
+		
+		/**
+		 * Finish user logout.
+		 */
+		private function logoutOK(server:ServerInteraction):void {
+			this.processCommand("doLogout");
+			server.kill();
+		}
+		
+		/**
+		 * Font list loaded.
+		 */
+		private function onFontComplete(evt:Event):void {
+			// check and download custom fonts
+			var fontLoader:URLLoader = evt.target as URLLoader;
+			fontLoader.removeEventListener(Event.COMPLETE, onFontComplete);
+			fontLoader.removeEventListener(IOErrorEvent.IO_ERROR, onFontError);
+			fontLoader.removeEventListener(SecurityErrorEvent.SECURITY_ERROR, onFontError);
+			try {
+				var fontList:XML = new XML(fontLoader.data);
+				for (var index:uint = 0; index < fontList.child("font").length(); index++) {
+					var font:Loader = new Loader();
+					font.contentLoaderInfo.addEventListener(Event.INIT, fontInit);
+					font.contentLoaderInfo.addEventListener(IOErrorEvent.IO_ERROR, fontError);
+					var fontContext:LoaderContext = new LoaderContext(false, ApplicationDomain.currentDomain, null);
+					font.load(new URLRequest("font/" + fontList.font[index].file), fontContext);
+				}
+			} catch (e:Error) {
+				// do not use custom fonts
+			}
+		}
+		
+		/**
+		 * Font list not loaded.
+		 */
+		private function onFontError(evt:Event):void {
+			// do not use custom fonts
+			var fontLoader:URLLoader = evt.target as URLLoader;
+			fontLoader.removeEventListener(Event.COMPLETE, onFontComplete);
+			fontLoader.removeEventListener(IOErrorEvent.IO_ERROR, onFontError);
+			fontLoader.removeEventListener(SecurityErrorEvent.SECURITY_ERROR, onFontError);
+		}
+		
+		/**
+		 * Font file loaded.
+		 */
+		private function fontInit(evt:Event):void {
+			var linfo:LoaderInfo = evt.target as LoaderInfo;
+			linfo.removeEventListener(Event.INIT, fontInit);
+			linfo.removeEventListener(IOErrorEvent.IO_ERROR, fontError);
+			// update the intance properties font list
+			this._properties.updateFontList();
+		}
+		
+		/**
+		 * Font file load error.
+		 */
+		private function fontError(evt:Event):void {
+			// ignore the font file
+			var linfo:LoaderInfo = evt.target as LoaderInfo;
+			linfo.removeEventListener(Event.INIT, fontInit);
+			linfo.removeEventListener(IOErrorEvent.IO_ERROR, fontError);
+		}
+		
+		/**
+		 * System configuration is loaded.
+		 */
+		private function onConfigComplete(evt:Event):void {
+			this._managanaConfig.removeEventListener(Event.COMPLETE, onConfigComplete);
+			this._managanaConfig.removeEventListener(Event.CANCEL, onConfigError);
+			// prepare data
+			if (this._managanaConfig.isConfig("agent")) EditorOptions.agent = this._managanaConfig.getConfig("agent");
+				else EditorOptions.agent = this.CONNAGENT;
+			EditorOptions.path = StringFunctions.slashURL(this._managanaConfig.getConfig("server"));
+			if (this._managanaConfig.isConfig("prefix")) EditorOptions.prefix = this._managanaConfig.getConfig("prefix");
+				else EditorOptions.prefix = this.SERVERPREFIX;
+			if (this._managanaConfig.isConfig("extension")) EditorOptions.extension = this._managanaConfig.getConfig("extension");
+				else EditorOptions.extension = this.SERVEREXTENSION;
+			if (this._managanaConfig.isConfig("method")) EditorOptions.method = this._managanaConfig.getConfig("method");
+				else EditorOptions.method = this.SERVERMETHOD;	
+			EditorOptions.shareurl = EditorOptions.path + "share" + EditorOptions.extension;
+			EditorOptions.feedurl = EditorOptions.path + "feed" + EditorOptions.extension;
+			// draw editor components
+			this._tools = new ToolsWindow();
+			this._tools.x = 5;
+			this._tools.y = 30;
+			PopUpManager.addPopUp(this._tools, this, false);
+			this._properties = new PropertiesWindow();
+			this._properties.x = this.width - 5 - this._properties.width;
+			this._properties.y = 30;
+			PopUpManager.addPopUp(this._properties, this, false);
+			this._timeline = new TimelineWindow();
+			this._timeline.visible = false;
+			PopUpManager.addPopUp(this._timeline, this, false);
+			PopUpManager.centerPopUp(this._timeline);
+			this._playlist = new PlaylistWindow();
+			this._playlist.visible = false;
+			PopUpManager.addPopUp(this._playlist, this, false);
+			PopUpManager.centerPopUp(this._playlist);
+			this._community = new CommunityWindow();
+			this._community.streamProvider = this.currentStreams;
+			this._community.playlistProvider = this.currentPlaylists;
+			this._community.visible = false;
+			PopUpManager.addPopUp(this._community, this, false);
+			PopUpManager.centerPopUp(this._community);
+			this._preview = new WindowPreview();
+			PopUpManager.addPopUp(this._preview, this, false);
+			this._preview.visible = false;
+			// check server
+			WindowServerCheck.createServer("checkserver", null, serverResponse);
+		}
+			
+		/**
+		 * System configuration failed to load.
+		 */
+		private function onConfigError(evt:Event):void {
+			this._managanaConfig.removeEventListener(Event.COMPLETE, onConfigComplete);
+			this._managanaConfig.removeEventListener(Event.CANCEL, onConfigError);
+			// halt system
+			Main.halt(resourceManager.getString('language', 'HALT_TITLE'), resourceManager.getString('language', 'HALT_NOCONFIG'));
+		}
+		
+		/**
+		 * Server connection return.
+		 * @param	server	server information
+		 */
+		private function serverResponse(server:ServerInteraction):void {
+			switch (server.error) {
+				case ServerEvent.SERVER_NOTFOUND:
+					Main.halt(resourceManager.getString('language', 'HALT_TITLE'), resourceManager.getString('error', 'ERSERVER-0'));
+					break;
+				case ServerEvent.SERVER_AGENT:
+				case ServerEvent.SERVER_CONTENT:
+					Main.halt(resourceManager.getString('language', 'HALT_TITLE'), resourceManager.getString('error', 'ERSERVER-1'));
+					break;
+			}
+			// get data
+			EditorOptions.cfolder = String(server.data.cfolder);
+			EditorOptions.uploadMax = uint(server.data.uploadsize);
+			server.kill();
+			// show visual feedback
+			this.view = new ViewArea(resourceManager.getString('language', 'VIEW_NOTVISIBLE'), resourceManager.getString('language', 'VIEW_NOELEMENT'), resourceManager.getString('language', 'VIEW_FEEDNAME'), resourceManager.getString('language', 'VIEW_FEEDFIELD'), resourceManager.getString('language', 'VIEW_FEEDPOST'));
+			this._feeds.feedurl = EditorOptions.feedurl;
+			this.view.feeds = this._feeds;
+			this.displayArea.addChild(this.view);
+			// start usage check timer
+			this._timer = new Timer(1000 * 60 * 2.5);
+			this._timer.addEventListener(TimerEvent.TIMER, onCheckUsage);
+			this._timer.start();
+			// automatically login an user?
+			this.debugLogin();
+		}
+		
+		/**
+		 * Adjust view container.
+		 */
+		private function adjustView():void {
+			if (this.displayAreaContainer.width < this.view.width + 200) {
+				this.displayArea.width = this.view.width + 200;
+			} else {
+				this.displayArea.width = this.displayAreaContainer.width;
+			}
+			if (this.displayAreaContainer.height < this.view.height + 200) {
+				this.displayArea.height = this.view.height + 200;
+			} else {
+				this.displayArea.height = this.displayAreaContainer.height;
+			}
+			this.view.x = (this.displayArea.width - this.view.width) / 2;
+			this.view.y = (this.displayArea.height - this.view.height) / 2;
+		}
+		
+		/**
+		 * Check stream and playlist usage for current community.
+		 */
+		private function onCheckUsage(evt:TimerEvent):void {
+			if ((UserInfo.logged) && (LoadedData.community.id != "")) {
+				var param:String = "community=" + escape(LoadedData.community.id);
+				param += "&stream=" + escape(LoadedData.stream.id);
+				param += "&streamname=" + escape(LoadedData.stream.title);
+				param += "&numplaylist=" + LoadedData.stream.numplaylist;
+				var plnumber:uint = 0;
+				for (var index:String in LoadedData.stream.playlists) {
+					param += "&pl" + plnumber + "=" + escape(index);
+					param += "&plname" + plnumber + "=" + escape(LoadedData.stream.playlists[index].name);
+					plnumber++;
+				}
+				WindowServerCheck.createServer("current", param, checkResponse, true, false);
+			}
+		}
+		
+		/**
+		 * Usage data return.
+		 * @param	server	server information
+		 */
+		private function checkResponse(server:ServerInteraction):void {
+			if (server.error == ServerEvent.SERVER_ERROR) {
+				// do nothing
+			} else {
+				// release previous usage information
+				this.currentStreams.removeAll();
+				this.currentPlaylists.removeAll();
+				// get list of streams in use
+				for (var index:uint = 0; index < server.data.child("stream").length(); index++) {
+					this.currentStreams.addItem( { id:String(server.data.stream[index].id), idname:String(server.data.stream[index].idname), user:String(server.data.stream[index].user), username:String(server.data.stream[index].username), time:uint(server.data.stream[index].time) } );
+				}
+				// get list of playlists in use
+				for (index = 0; index < server.data.child("playlist").length(); index++) {
+					this.currentPlaylists.addItem( { id:String(server.data.playlist[index].id), idname:String(server.data.playlist[index].idname), user:String(server.data.playlist[index].user), username:String(server.data.playlist[index].username), time:uint(server.data.playlist[index].time) } );
+				}
+			}
+			server.kill();
+		}
+		
+		/**
+		 * Automatically login an user for debug.
+		 */
+		private function debugLogin():void {
+			var loader:URLLoader = new URLLoader();
+			loader.addEventListener(Event.COMPLETE, onDBGLoginComplete);
+			loader.addEventListener(IOErrorEvent.IO_ERROR, onDBGLoginError);
+			loader.addEventListener(SecurityErrorEvent.SECURITY_ERROR, onDBGLoginError);
+			loader.load(new URLRequest("login.debug"));
+		}
+		
+		private function onDBGLoginError(evt:Event):void {
+			// just cancel automatic login
+			var loader:URLLoader = evt.target as URLLoader;
+			loader.removeEventListener(Event.COMPLETE, onDBGLoginComplete);
+			loader.removeEventListener(IOErrorEvent.IO_ERROR, onDBGLoginError);
+			loader.removeEventListener(SecurityErrorEvent.SECURITY_ERROR, onDBGLoginError);
+		}
+		
+		private function onDBGLoginComplete(evt:Event):void {
+			// clear listeners
+			var loader:URLLoader = evt.target as URLLoader;
+			loader.removeEventListener(Event.COMPLETE, onDBGLoginComplete);
+			loader.removeEventListener(IOErrorEvent.IO_ERROR, onDBGLoginError);
+			loader.removeEventListener(SecurityErrorEvent.SECURITY_ERROR, onDBGLoginError);
+			// check automatic login
+			var dbgLoginData:Object;
+			try {
+				dbgLoginData = JSON.parse(loader.data as String);
+			} catch (e:Error) { }
+			if (dbgLoginData != null) {
+				if (dbgLoginData.debugUser != null) {
+					var loginParams:String;
+					switch (String(dbgLoginData.debugUser)) {
+						case 'super':
+							loginParams = "user=" + escape(dbgLoginData.debugSuperMail) + "&" + "pass=" + escape(dbgLoginData.debugSuperPass);
+							WindowServerCheck.createServer("login", loginParams, debugReturn);
+							break;
+						case 'admin':
+							loginParams = "user=" + escape(dbgLoginData.debugAdminMail) + "&" + "pass=" + escape(dbgLoginData.debugAdminPass);
+							WindowServerCheck.createServer("login", loginParams, debugReturn);
+							break;
+						case 'user':
+							loginParams = "user=" + escape(dbgLoginData.debugUserMail) + "&" + "pass=" + escape(dbgLoginData.debugUserPass);
+							WindowServerCheck.createServer("login", loginParams, debugReturn);
+							break;
+					}
+				}
+			}
+		}
+		
+		/**
+		 * Automatic login server response.
+		 * @param	server	server response
+		 */
+		private function debugReturn(server:ServerInteraction):void {
+			switch (server.error) {
+				case ServerEvent.SERVER_ERROR:
+					Warning.createWarning(resourceManager.getString('language', 'LW_ERRORTITLE'), resourceManager.getString('error', server.errorID));
+					break;
+				case ServerEvent.SERVER_OK:
+					// get user data
+					UserInfo.index = uint(server.data.index);
+					UserInfo.id = String(server.data.id);
+					UserInfo.email = String(server.data.email);
+					UserInfo.name = String(server.data.name);
+					UserInfo.level = String(server.data.level);
+					processCommand("doLogin");
+					break;
+			}
+			server.kill();
+		}
+		
+		]]>
+	</fx:Script>
+	
+	<!-- main menu -->
+	<mana:MainMenu id="mainmenu" />
+	<!-- display area -->
+	<s:Group id="displayAreaContainer" styleName="displayGroup" width="100%" height="100%">
+		<s:Scroller x="0" y="0" width="100%" height="100%">
+			<s:Group><s:SpriteVisualElement id="displayArea" /></s:Group>
+		</s:Scroller>
+	</s:Group>
+	<!-- status bar -->
+	<mana:ApplicationStatus id="statusBar" left="0" bottom="0" />
+
+	
+</s:Application>
