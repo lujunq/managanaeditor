@@ -13,7 +13,7 @@ package  {
 		
 		// CONSTANTS
 		
-		private const VERSION:String = "1.7.0 (beta)";		// current Managana version number
+		private const VERSION:String = "1.7.0 (beta 08/04/15 14:00)";		// current Managana version number
 		
 		// VARIABLES
 		
@@ -40,7 +40,7 @@ package  {
 			var versionNum:TextField = new TextField();
 			versionNum.defaultTextFormat = new TextFormat("_sans", 14, 0x000000, null, null, null, "http://www.managana.org/", "_blank", "center");
 			versionNum.text = VERSION;
-			versionNum.width = 100;
+			versionNum.width = 300;
 			versionNum.height = 25;
 			versionNum.x = (this.stage.stageWidth - versionNum.width) / 2;
 			versionNum.y = img.y + img.height + 20;
