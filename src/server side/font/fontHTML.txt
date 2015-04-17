@@ -1,0 +1,21 @@
+@font-face { font-family: "Crimson"; src: url(font/Crimson-Roman.otf); font-weight: normal; font-style: normal; }
+@font-face { font-family: "Crimson"; src: url(font/Crimson-Bold.otf); font-weight: normal; font-style: normal; }
+@font-face { font-family: "Crimson"; src: url(font/Crimson-Italic.otf); font-weight: normal; font-style: normal; }
+@font-face { font-family: "Free Universal"; src: url(font/FreeUniversal-Regular.ttf); font-weight: normal; font-style: normal; }
+@font-face { font-family: "Free Universal"; src: url(font/FreeUniversal-Bold.ttf); font-weight: normal; font-style: normal; }
+@font-face { font-family: "Free Universal"; src: url(font/FreeUniversal-Italic.ttf); font-weight: normal; font-style: normal; }
+@font-face { font-family: "Free Universal"; src: url(font/FreeUniversal-BoldItalic.ttf); font-weight: normal; font-style: normal; }
+@font-face { font-family: "Gentium"; src: url(font/GenBasR.ttf); font-weight: normal; font-style: normal; }
+@font-face { font-family: "Gentium"; src: url(font/GenBasB.ttf); font-weight: normal; font-style: normal; }
+@font-face { font-family: "Gentium"; src: url(font/GenBasI.ttf); font-weight: normal; font-style: normal; }
+@font-face { font-family: "Gentium"; src: url(font/GenBasBI.ttf); font-weight: normal; font-style: normal; }
+@font-face { font-family: "Marvel"; src: url(font/Marvel-Regular.ttf); font-weight: normal; font-style: normal; }
+@font-face { font-family: "Marvel"; src: url(font/Marvel-Bold.ttf); font-weight: normal; font-style: normal; }
+@font-face { font-family: "Marvel"; src: url(font/Marvel-Italic.ttf); font-weight: normal; font-style: normal; }
+@font-face { font-family: "Marvel"; src: url(font/Marvel-BoldItalic.ttf); font-weight: normal; font-style: normal; }
+@font-face { font-family: "NotCourierSans"; src: url(font/NotCourierSans.otf); font-weight: normal; font-style: normal; }
+@font-face { font-family: "NotCourierSans"; src: url(font/NotCourierSans-Bold.otf); font-weight: normal; font-style: normal; }
+@font-face { font-family: "Pfenning"; src: url(font/Pfennig.ttf); font-weight: normal; font-style: normal; }
+@font-face { font-family: "Pfenning"; src: url(font/PfennigBold.ttf); font-weight: normal; font-style: normal; }
+@font-face { font-family: "Pfenning"; src: url(font/PfennigItalic.ttf); font-weight: normal; font-style: normal; }
+@font-face { font-family: "Pfenning"; src: url(font/PfennigBoldItalic.ttf); font-weight: normal; font-style: normal; }

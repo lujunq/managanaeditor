@@ -1,0 +1,5 @@
+The Managana web editor relies on PHP server scripts with MySQL connection to work. This folder brings these scripts and a SQL file used to create a valid database structure.
+
+Installation scripts are also available to simplify the use of Managana for end users ("update.php" file and "dbupdate" folder). The files created by the instalation, "DIS_config.php" and "managanaconfig.xml" are included without user info for reference.
+
+The minimized version of the Managana HTML5 player is also included ("managana.js").

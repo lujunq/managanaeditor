@@ -1,0 +1,6 @@
+ALTER TABLE `dis_community` ADD `com_target` TEXT NOT NULL ,ADD `com_vote0` TEXT NOT NULL ,ADD `com_vote10` TEXT NOT NULL ,ADD `com_vote20` TEXT NOT NULL ,ADD `com_vote30` TEXT NOT NULL ,ADD `com_vote40` TEXT NOT NULL ,ADD `com_vote50` TEXT NOT NULL ,ADD `com_vote60` TEXT NOT NULL ,ADD `com_vote70` TEXT NOT NULL ,ADD `com_vote80` TEXT NOT NULL ,ADD `com_vote90` TEXT NOT NULL ,ADD `com_vote100` TEXT NOT NULL 
+ALTER TABLE `dis_instance` CHANGE `ins_streamindex` `ins_streamindex` BIGINT NOT NULL 
+CREATE TABLE IF NOT EXISTS `dis_keyaction` (  `kac_index` bigint(20) NOT NULL AUTO_INCREMENT,  `kac_community` text NOT NULL,  `kac_streamindex` bigint(20) NOT NULL,  `kac_keyframe` int(11) NOT NULL,  `kac_action` text NOT NULL,  `kac_moment` tinyint(4) NOT NULL,  PRIMARY KEY (`kac_index`)) ENGINE=MyISAM DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;
+INSERT INTO `dis_options` (`opt_name` ,`opt_value`)VALUES ('VOTEMENU', 'Vote'), ('REMOTEMENU', 'Remote');
+ALTER TABLE `dis_openusers` ADD `opn_remote` TEXT NOT NULL ;
+CREATE TABLE IF NOT EXISTS `dis_remote` (  `rem_mode` text NOT NULL,  `rem_ip` text NOT NULL,  `rem_peer` text NOT NULL,  `rem_group` text NOT NULL) ENGINE=MyISAM DEFAULT CHARSET=utf8;

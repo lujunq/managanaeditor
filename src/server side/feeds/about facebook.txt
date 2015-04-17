@@ -1,0 +1,5 @@
+Copy Facebook PHP SDK files to this folder to enable Facebook external feed fetch. The expected files are:
+
+* base_facebook.php
+* facebook.php
+* fb_ca_chain_bundle.crt

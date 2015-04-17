@@ -1,0 +1,14 @@
+CREATE TABLE IF NOT EXISTS `dis_remoteusers` (  `rus_index` int(11) NOT NULL AUTO_INCREMENT,  `rus_login` text NOT NULL,  `rus_password` text NOT NULL,  `rus_publickey` text NOT NULL,  PRIMARY KEY (`rus_index`)) ENGINE=MyISAM  DEFAULT CHARSET=utf8 AUTO_INCREMENT=4 ;
+CREATE TABLE IF NOT EXISTS `dis_publickey` (  `pky_index` int(11) NOT NULL AUTO_INCREMENT,  `pky_key` text NOT NULL,  `pky_pass` text NOT NULL,  PRIMARY KEY (`pky_index`)) ENGINE=MyISAM DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;
+CREATE TABLE IF NOT EXISTS `dis_usersaves` (  `usv_user` text NOT NULL,  `usv_community` text NOT NULL,  `usv_string` text NOT NULL,  `usv_number` text NOT NULL,  `usv_time` int(14) NOT NULL) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `dis_communityvalues` (  `cvl_community` text NOT NULL,  `cvl_name` text NOT NULL,  `cvl_value` text NOT NULL,  `cvl_time` int(14) NOT NULL) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `dis_streamgeopoint` (  `sgp_community` text NOT NULL,  `sgp_stream` text NOT NULL,  `sgp_latitude` text NOT NULL,  `sgp_longitude` text NOT NULL,  `sgp_code` text NOT NULL,  `sgp_name` text NOT NULL) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `dis_streamgeodata` (  `sgd_community` text NOT NULL,  `sgd_stream` text NOT NULL,  `sgd_use` tinyint(4) NOT NULL,  `sgd_target` text NOT NULL,  `sgd_map` text NOT NULL,  `sgd_latitudetop` text NOT NULL,  `sgd_longitudetop` text NOT NULL,  `sgd_latitudebottom` text NOT NULL,  `sgd_longitudebottom` text NOT NULL) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+ALTER TABLE `dis_instance` ADD `ins_textalign` TEXT NOT NULL AFTER `ins_fontcolor` ;
+UPDATE `dis_instance` SET `ins_textalign`='left' WHERE `ins_textalign`='';
+ALTER TABLE `dis_stream` ADD `str_pcode` TEXT NOT NULL ;
+ALTER TABLE `dis_stream` ADD `str_functiona` TEXT NOT NULL ,ADD `str_functionb` TEXT NOT NULL ,ADD `str_functionc` TEXT NOT NULL ,ADD `str_functiond` TEXT NOT NULL ;
+ALTER TABLE `dis_community` ADD `com_votedefault` TINYINT NOT NULL ;
+ALTER TABLE `dis_stream` ADD `str_votedefault` TINYINT NOT NULL ,ADD `str_remotestream` TEXT NOT NULL ;
+ALTER TABLE `dis_community` ADD `com_voterecord` TINYINT NOT NULL DEFAULT '1';
+ALTER TABLE `dis_stream` ADD `str_startaftervote` TINYINT NOT NULL AFTER `str_votereference` ;
