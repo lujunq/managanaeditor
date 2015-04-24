@@ -42,6 +42,8 @@ This is the main file for Managana editor.
 		import flash.net.URLLoader;
 		import flash.net.URLRequest;
 		import flash.system.LoaderContext;
+		import flash.ui.ContextMenu;
+		import flash.ui.ContextMenuItem;
 		import flash.utils.Timer;
 		import flash.events.TimerEvent;
 		import spark.components.Panel;
@@ -77,10 +79,11 @@ This is the main file for Managana editor.
 		
 		// CONSTANTS
 		
-		private const SERVERPREFIX:String = "DIS_";				// default prefix user on server scripts
-		private const SERVEREXTENSION:String = ".php";			// default file extension of server scripts
-		private const SERVERMETHOD:String = "post";				// default request method for server scripts
-		private const CONNAGENT:String = "Managana";			// connection agent identifier
+		private const SERVERPREFIX:String = "DIS_";							// default prefix user on server scripts
+		private const SERVEREXTENSION:String = ".php";						// default file extension of server scripts
+		private const SERVERMETHOD:String = "post";							// default request method for server scripts
+		private const CONNAGENT:String = "Managana";						// connection agent identifier
+		private const MANAGANAVERSION:String = "1.7.0 (beta 24/04/15a)";	// Managana current version string
 		
 		
 		// VARIABLE
@@ -134,6 +137,11 @@ This is the main file for Managana editor.
 			// stage reference
 			if (this.stage != null) Main.theStage = this.stage;
 				else this.addEventListener(Event.ADDED_TO_STAGE, onStage);
+			// right click menu
+			var cMenu:ContextMenu = new ContextMenu();
+			var managanaAbout:ContextMenuItem = new ContextMenuItem(("Managana editor version " + MANAGANAVERSION), true, false);
+			cMenu.customItems.push(managanaAbout);
+			this.contextMenu = cMenu;
 		}
 		
 		/**
@@ -946,10 +954,19 @@ public function processCommand(command:String, parameter:* = null):* {
 		 * Font file loaded.
 		 */
 		private function fontInit(evt:Event):void {
+			
+			trace ('font init', evt);
+			
 			var linfo:LoaderInfo = evt.target as LoaderInfo;
+			
+			trace ('linfo', linfo);
+			
 			linfo.removeEventListener(Event.INIT, fontInit);
 			linfo.removeEventListener(IOErrorEvent.IO_ERROR, fontError);
 			// update the intance properties font list
+			
+			trace ('properties', this._properties);
+			
 			this._properties.updateFontList();
 		}
 		

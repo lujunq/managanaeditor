@@ -13,7 +13,7 @@ package  {
 		
 		// CONSTANTS
 		
-		private const VERSION:String = "1.7.0 (beta 08/04/15 14:00)";		// current Managana version number
+		private const VERSION:String = "1.7.0 (beta 24/04/15a)";		// current Managana version number
 		
 		// VARIABLES
 		
